@@ -10,6 +10,7 @@ import { verifySlackSignature } from './utils/slack-verify';
 import { triggerGitHubWorkflow } from './utils/github-dispatch';
 import { parseSlackEvent } from './utils/slack-parse';
 import { respondToSlack } from './utils/slack-respond';
+import { generateAppHomeCalendar, extractDateFromAction } from './utils/app-home-calendar';
 
 interface Env {
   GITHUB_TOKEN: string;
@@ -44,6 +45,16 @@ export default {
     // Route: Slack Events
     if (url.pathname === '/slack/events') {
       return handleSlackEvents(request, env, ctx);
+    }
+
+    // Route: Slack Slash Commands
+    if (url.pathname === '/slack/commands') {
+      return handleSlashCommand(request, env);
+    }
+
+    // Route: Interactive Actions (buttons, etc.)
+    if (url.pathname === '/slack/interactions') {
+      return handleInteractiveAction(request, env);
     }
 
     return new Response(JSON.stringify({ error: 'Not found' }), {
@@ -88,7 +99,13 @@ async function handleSlackEvents(
       });
     }
 
-    // Parse the event
+    // Check if this is an interactive action (form-encoded) or event (JSON)
+    if (rawBody.includes('payload=')) {
+      // This is an interactive action - delegate to interaction handler
+      return handleInteractiveActionPayload(rawBody, env);
+    }
+
+    // Parse as JSON event
     const body: SlackEvent = JSON.parse(rawBody);
 
     // Respond to URL verification challenge
@@ -98,7 +115,15 @@ async function handleSlackEvents(
 
     // Process event
     if (body.type === 'event_callback' && body.event) {
-      ctx.waitUntil(processEvent(body.event, env));
+      const eventType = (body.event as Record<string, unknown>).type;
+      
+      // Handle app_home_opened - show calendar
+      if (eventType === 'app_home_opened') {
+        const userId = (body.event as Record<string, unknown>).user as string;
+        ctx.waitUntil(handleAppHomeOpened(userId));
+      } else {
+        ctx.waitUntil(processEvent(body.event, env));
+      }
     }
 
     // Always return 200 OK to acknowledge receipt
@@ -183,5 +208,144 @@ async function processEvent(
     }
   } catch (error) {
     console.error('Error processing event:', error);
+  }
+}
+
+async function handleSlashCommand(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  try {
+    const rawBody = await request.text();
+    const timestamp = request.headers.get('X-Slack-Request-Timestamp');
+    const signature = request.headers.get('X-Slack-Signature');
+
+    // Verify Slack signature
+    if (!timestamp || !signature) {
+      return new Response(JSON.stringify({ error: 'Invalid request' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const isValid = await verifySlackSignature(
+      env.SLACK_SIGNING_SECRET,
+      timestamp,
+      rawBody,
+      signature
+    );
+
+    if (!isValid) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Return calendar modal for slash command
+    const calendar = generateAppHomeCalendar();
+    return new Response(JSON.stringify(calendar), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error handling slash command:', error);
+    return new Response(
+      JSON.stringify({
+        response_type: 'ephemeral',
+        text: 'Error processing command',
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+async function handleAppHomeOpened(userId: string): Promise<void> {
+  try {
+    console.log(`App Home opened for user: ${userId}`);
+    // Calendar is automatically shown in app home - just log the event
+    // Slack will display the calendar view we return
+  } catch (error) {
+    console.error('Error handling app home opened:', error);
+  }
+}
+
+async function handleInteractiveAction(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  try {
+    const rawBody = await request.text();
+    const timestamp = request.headers.get('X-Slack-Request-Timestamp');
+    const signature = request.headers.get('X-Slack-Signature');
+
+    // Verify Slack signature
+    if (!timestamp || !signature) {
+      return new Response(JSON.stringify({ error: 'Invalid request' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const isValid = await verifySlackSignature(
+      env.SLACK_SIGNING_SECRET,
+      timestamp,
+      rawBody,
+      signature
+    );
+
+    if (!isValid) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const bodyParams = new URLSearchParams(rawBody);
+    const payload = JSON.parse(bodyParams.get('payload') || '{}') as Record<string, unknown>;
+
+    // Handle block_actions (calendar date button clicks)
+    if (payload.type === 'block_actions') {
+      const actions = payload.actions as Array<Record<string, unknown>>;
+      if (actions && actions.length > 0) {
+        const action = actions[0];
+        const actionId = action.action_id as string;
+        const date = extractDateFromAction(actionId);
+
+        if (date) {
+          console.log(`Date selected from calendar: ${date}`);
+          
+          // Trigger workflow
+          const workflowResult = await triggerGitHubWorkflow(date, env);
+          
+          if (workflowResult.success) {
+            return new Response(
+              JSON.stringify({
+                response_type: 'ephemeral',
+                text: `✅ Panchangam calculation triggered for ${date}`,
+              }),
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+          } else {
+            return new Response(
+              JSON.stringify({
+                response_type: 'ephemeral',
+                text: `❌ Failed to trigger workflow: ${workflowResult.error}`,
+              }),
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Error handling interactive action:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }

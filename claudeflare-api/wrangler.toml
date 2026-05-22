@@ -16,7 +16,7 @@ route = "https://panchang-staging-*.workers.dev/*"
 
 # Environment variables
 [vars]
-GITHUB_OWNER = "your_github_username"
+GITHUB_OWNER = "acharyarajasekhar"
 GITHUB_REPO = "My-Panchang-Agent"
 GITHUB_EVENT_TYPE = "panchang-webhook"
 
