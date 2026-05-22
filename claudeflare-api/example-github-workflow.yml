@@ -1,0 +1,77 @@
+name: Panchang Webhook Trigger
+# Triggered by Claudeflare Slack Bridge webhook
+# File location: .github/workflows/panchang-webhook.yml
+
+on:
+  repository_dispatch:
+    types: [panchang-webhook]
+
+jobs:
+  calculate-panchangam:
+    runs-on: ubuntu-latest
+    name: Calculate Panchangam
+    
+    steps:
+      - name: ✅ Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: 📅 Extract date from payload
+        id: date
+        run: |
+          DATE="${{ github.event.client_payload.date }}"
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+          echo "Calculating Panchang for: $DATE"
+      
+      - name: 🔮 Calculate Panchangam
+        env:
+          TARGET_DATE: ${{ steps.date.outputs.date }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python main.py --date "$TARGET_DATE" --now
+      
+      - name: 📊 Upload results (optional)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: panchang-calculation-${{ steps.date.outputs.date }}
+          path: |
+            *.json
+            *.log
+          retention-days: 30
+
+  notify-slack-if-failed:
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [calculate-panchangam]
+    
+    steps:
+      - name: 🚨 Notify Slack of failure
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "❌ Panchang calculation failed for date: ${{ github.event.client_payload.date }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Panchang Calculation Failed*\n\nDate: `${{ github.event.client_payload.date }}`\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow Run>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

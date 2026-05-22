@@ -1,0 +1,28 @@
+{
+  "name": "panchang-slack-bridge",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers API to bridge Slack input to GitHub Actions for Panchang calculations",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "wrangler dev",
+    "deploy": "node deploy.js",
+    "deploy:prod": "node deploy.js production",
+    "deploy:staging": "node deploy.js staging",
+    "deploy:interactive": "node deploy.js",
+    "deploy:skip-secrets": "node deploy.js --skip-secrets",
+    "deploy:dry-run": "node deploy.js --dry-run",
+    "deploy:wrangler": "wrangler deploy",
+    "deploy:wrangler:staging": "wrangler deploy --env staging",
+    "test": "jest"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241216.1",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.26.0"
+  }
+}

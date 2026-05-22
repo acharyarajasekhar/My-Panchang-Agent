@@ -1,0 +1,51 @@
+name: Webhook Panchangam
+
+on:
+  repository_dispatch:
+    types: [panchang-webhook]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: webhook-panchang
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Extract date from webhook
+        id: date
+        run: |
+          DATE="${{ github.event.client_payload.date }}"
+          if [[ -z "$DATE" ]]; then
+            echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          else
+            echo "date=$DATE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate date format
+        run: |
+          DATE="${{ steps.date.outputs.date }}"
+          if ! date -d "$DATE" +%Y-%m-%d > /dev/null 2>&1; then
+            echo "Invalid date format: $DATE. Expected YYYY-MM-DD"
+            exit 1
+          fi
+
+      - name: Generate Panchangam for specified date
+        run: python main.py --now --date "${{ steps.date.outputs.date }}"

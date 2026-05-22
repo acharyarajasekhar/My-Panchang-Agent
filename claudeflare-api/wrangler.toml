@@ -1,0 +1,26 @@
+name = "panchang-slack-bridge"
+main = "src/index.ts"
+compatibility_date = "2024-12-16"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "npm run build"
+cwd = "."
+watch_paths = ["src/**/*.ts"]
+
+[env.production]
+route = "https://panchang-api.*.workers.dev/*"
+
+[env.staging]
+route = "https://panchang-staging-*.workers.dev/*"
+
+# Environment variables
+[vars]
+GITHUB_OWNER = "your_github_username"
+GITHUB_REPO = "My-Panchang-Agent"
+GITHUB_EVENT_TYPE = "panchang-webhook"
+
+# Secrets (set via: wrangler secret put)
+# - GITHUB_TOKEN: GitHub personal access token for workflow dispatch
+# - SLACK_SIGNING_SECRET: Slack app signing secret (for request verification)
+# - SLACK_WEBHOOK_URL: Optional Slack webhook for responses (if not using response_url)
