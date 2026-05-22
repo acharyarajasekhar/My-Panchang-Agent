@@ -6,8 +6,8 @@ Generates properly signed Slack events for testing the Cloudflare Worker
 This script tests the Cloudflare Worker that acts as a bridge between Slack and GitHub Actions.
 
 Usage:
-    python test_cloudflare_worker.py              # Tests against local worker
-    WORKER_URL=<url> python test_cloudflare_worker.py  # Tests against specific URL
+    python scripts/test_cloudflare_worker.py              # Tests against local worker
+    WORKER_URL=<url> python scripts/test_cloudflare_worker.py  # Tests against specific URL
 """
 
 import json
@@ -234,7 +234,7 @@ def main():
     else:
         print("Cloudflare Worker (Slack Bridge) - Test Suite")
         print("="*60)
-        print("\nUsage: python test_cloudflare_worker.py <test_name>")
+        print("\nUsage: python scripts/test_cloudflare_worker.py <test_name>")
         print("\nAvailable tests:")
         print("  health      - Health check")
         print("  verify      - Slack URL verification")
@@ -245,10 +245,10 @@ def main():
         print("  no_date     - Message without date (should be ignored)")
         print("  natural     - Natural language date")
         print("\nRun all tests:")
-        print("  python test_cloudflare_worker.py verify && \\")
-        print("  python test_cloudflare_worker.py mention && \\")
-        print("  python test_cloudflare_worker.py message && \\")
-        print("  python test_cloudflare_worker.py invalid_sig")
+        print("  python scripts/test_cloudflare_worker.py verify && \\")
+        print("  python scripts/test_cloudflare_worker.py mention && \\")
+        print("  python scripts/test_cloudflare_worker.py message && \\")
+        print("  python scripts/test_cloudflare_worker.py invalid_sig")
 
 
 if __name__ == "__main__":
