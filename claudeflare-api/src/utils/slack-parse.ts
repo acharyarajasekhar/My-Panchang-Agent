@@ -91,6 +91,7 @@ export function extractDateFromMessage(text: string): string | undefined {
 }
 
 function isRelevantMessage(text: string): boolean {
+  // Check for keywords
   const keywords = [
     'panchang',
     'panchangam',
@@ -99,7 +100,12 @@ function isRelevantMessage(text: string): boolean {
     'ephemeris',
   ];
   const lowerText = text.toLowerCase();
-  return keywords.some((keyword) => lowerText.includes(keyword));
+  
+  // Accept if it contains keywords OR is a date pattern (for DMs)
+  const hasKeyword = keywords.some((keyword) => lowerText.includes(keyword));
+  const hasDatePattern = /\d{4}-\d{2}-\d{2}/.test(text); // YYYY-MM-DD
+  
+  return hasKeyword || hasDatePattern;
 }
 
 function parseFlexibleDate(text: string): Date | null {
