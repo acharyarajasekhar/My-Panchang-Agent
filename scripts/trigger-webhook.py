@@ -4,6 +4,12 @@ Trigger Panchangam GitHub Workflow Dispatch
 Manually trigger the Panchangam calculation workflow via GitHub API
 
 Usage:
+    # Windows (with virtual environment)
+    .\.venv\Scripts\python.exe scripts\trigger-webhook.py                    # Uses today's date
+    .\.venv\Scripts\python.exe scripts\trigger-webhook.py "2026-06-15"       # Specific date
+    .\.venv\Scripts\python.exe scripts\trigger-webhook.py --date "2026-06-15"
+
+    # Linux/Mac (with virtual environment activated)
     python scripts/trigger-webhook.py                    # Uses today's date
     python scripts/trigger-webhook.py "2026-06-15"       # Specific date
     python scripts/trigger-webhook.py --date "2026-06-15"

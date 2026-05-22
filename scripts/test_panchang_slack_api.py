@@ -6,11 +6,15 @@ Generates valid Slack events with proper signatures to test the Panchang API bac
 This script tests the Python backend that processes Slack events and generates Panchangam data.
 
 Usage:
+    # Windows (with virtual environment)
+    .\.venv\Scripts\python.exe scripts\test_panchang_slack_api.py app_mention 2026-05-22
+    .\.venv\Scripts\python.exe scripts\test_panchang_slack_api.py message 2026-07-04
+    .\.venv\Scripts\python.exe scripts\test_panchang_slack_api.py all 2026-05-22
+
+    # Linux/Mac (with virtual environment activated)
     python scripts/test_panchang_slack_api.py app_mention 2026-05-22
-    python scripts/test_panchang_slack_api.py app_mention 2026-12-25
     python scripts/test_panchang_slack_api.py message 2026-07-04
     python scripts/test_panchang_slack_api.py all 2026-05-22
-    python scripts/test_panchang_slack_api.py all
 
 Environment Variables (from .env):
     SLACK_SIGNING_SECRET - Slack app signing secret

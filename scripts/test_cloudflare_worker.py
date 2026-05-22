@@ -6,7 +6,13 @@ Generates properly signed Slack events for testing the Cloudflare Worker
 This script tests the Cloudflare Worker that acts as a bridge between Slack and GitHub Actions.
 
 Usage:
+    # Windows (with virtual environment)
+    .\.venv\Scripts\python.exe scripts\test_cloudflare_worker.py              # Tests against local worker
+    .\.venv\Scripts\python.exe scripts\test_cloudflare_worker.py verify      # Run specific test
+
+    # Linux/Mac (with virtual environment activated)
     python scripts/test_cloudflare_worker.py              # Tests against local worker
+    python scripts/test_cloudflare_worker.py verify       # Run specific test
     WORKER_URL=<url> python scripts/test_cloudflare_worker.py  # Tests against specific URL
 """
 
