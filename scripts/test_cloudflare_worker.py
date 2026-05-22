@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Test Script for Cloudflare Worker (Slack Bridge)
 Generates properly signed Slack events for testing the Cloudflare Worker
 

@@ -1,9 +1,13 @@
+"use strict";
 /**
  * Slack Response Handler
  * ─────────────────────
  * Sends responses back to Slack via webhook or API
  */
-export async function respondToSlack(responseUrl, message) {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.respondToSlack = respondToSlack;
+exports.postToSlackWebhook = postToSlackWebhook;
+async function respondToSlack(responseUrl, message) {
     if (!responseUrl) {
         console.warn('No response URL available for Slack response');
         return;
@@ -31,7 +35,7 @@ export async function respondToSlack(responseUrl, message) {
  * Send a message to Slack via Incoming Webhook
  * (fallback if response_url is not available)
  */
-export async function postToSlackWebhook(message, env) {
+async function postToSlackWebhook(message, env) {
     if (!env.SLACK_WEBHOOK_URL) {
         console.warn('SLACK_WEBHOOK_URL not configured');
         return;

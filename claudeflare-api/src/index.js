@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Panchang Slack Bridge - Cloudflare Worker
  * ──────────────────────────────────────────
@@ -5,11 +6,12 @@
  *
  * Slack → Extract Date (YYYY-MM-DD) → Trigger GitHub Workflow → Response
  */
-import { verifySlackSignature } from './utils/slack-verify';
-import { triggerGitHubWorkflow } from './utils/github-dispatch';
-import { parseSlackEvent } from './utils/slack-parse';
-import { respondToSlack } from './utils/slack-respond';
-export default {
+Object.defineProperty(exports, "__esModule", { value: true });
+const slack_verify_1 = require("./utils/slack-verify");
+const github_dispatch_1 = require("./utils/github-dispatch");
+const slack_parse_1 = require("./utils/slack-parse");
+const slack_respond_1 = require("./utils/slack-respond");
+exports.default = {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         // Route: Health check (GET)
@@ -46,7 +48,7 @@ async function handleSlackEvents(request, env, ctx) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const isValid = await verifySlackSignature(env.SLACK_SIGNING_SECRET, timestamp, rawBody, signature);
+        const isValid = await (0, slack_verify_1.verifySlackSignature)(env.SLACK_SIGNING_SECRET, timestamp, rawBody, signature);
         if (!isValid) {
             console.error('Slack signature verification failed');
             return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -79,27 +81,27 @@ async function handleSlackEvents(request, env, ctx) {
 }
 async function processEvent(event, env) {
     try {
-        const { eventType, date, responseUrl } = parseSlackEvent(event);
+        const { eventType, date, responseUrl } = (0, slack_parse_1.parseSlackEvent)(event);
         if (!eventType) {
             console.log('Event does not require processing:', event.type);
             return;
         }
         console.log(`Processing ${eventType} event for date: ${date}`);
         if (!date) {
-            await respondToSlack(responseUrl, {
+            await (0, slack_respond_1.respondToSlack)(responseUrl, {
                 text: '❌ Could not extract date. Please provide a date in YYYY-MM-DD format.',
             });
             return;
         }
         // Validate date format
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-            await respondToSlack(responseUrl, {
+            await (0, slack_respond_1.respondToSlack)(responseUrl, {
                 text: `❌ Invalid date format: "${date}". Please use YYYY-MM-DD format.`,
             });
             return;
         }
         // Trigger GitHub workflow
-        const workflowResult = await triggerGitHubWorkflow(date, env);
+        const workflowResult = await (0, github_dispatch_1.triggerGitHubWorkflow)(date, env);
         if (workflowResult.success) {
             const confirmation = {
                 text: `✅ Panchangam calculation triggered for ${date}`,
@@ -113,11 +115,11 @@ async function processEvent(event, env) {
                     },
                 ],
             };
-            await respondToSlack(responseUrl, confirmation);
+            await (0, slack_respond_1.respondToSlack)(responseUrl, confirmation);
             console.log(`✅ Workflow triggered successfully for ${date}`);
         }
         else {
-            await respondToSlack(responseUrl, {
+            await (0, slack_respond_1.respondToSlack)(responseUrl, {
                 text: `❌ Failed to trigger workflow: ${workflowResult.error}`,
             });
             console.error(`Failed to trigger workflow: ${workflowResult.error}`);

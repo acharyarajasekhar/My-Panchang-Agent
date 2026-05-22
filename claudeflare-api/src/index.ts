@@ -13,6 +13,8 @@ import { respondToSlack } from './utils/slack-respond';
 
 interface Env {
   GITHUB_TOKEN: string;
+  GITHUB_OWNER: string;
+  GITHUB_REPO: string;
   SLACK_SIGNING_SECRET: string;
   SLACK_WEBHOOK_URL?: string;
 }

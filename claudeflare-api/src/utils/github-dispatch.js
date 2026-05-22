@@ -1,9 +1,12 @@
+"use strict";
 /**
  * GitHub Workflow Dispatch Trigger
  * ────────────────────────────────
  * Triggers the Panchang calculation workflow via GitHub API
  */
-export async function triggerGitHubWorkflow(date, env) {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.triggerGitHubWorkflow = triggerGitHubWorkflow;
+async function triggerGitHubWorkflow(date, env) {
     try {
         const githubOwner = env.GITHUB_OWNER;
         const githubRepo = env.GITHUB_REPO;

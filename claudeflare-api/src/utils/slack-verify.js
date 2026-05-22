@@ -1,10 +1,13 @@
+"use strict";
 /**
  * Slack Request Signature Verification
  * ────────────────────────────────────
  * Verifies that requests are actually from Slack
  * using HMAC-SHA256 signature validation.
  */
-export async function verifySlackSignature(signingSecret, timestamp, body, signature) {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.verifySlackSignature = verifySlackSignature;
+async function verifySlackSignature(signingSecret, timestamp, body, signature) {
     // Prevent replay attacks
     const now = Math.floor(Date.now() / 1000);
     const slackTime = parseInt(timestamp, 10);

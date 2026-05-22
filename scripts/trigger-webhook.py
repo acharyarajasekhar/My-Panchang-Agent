@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Trigger Panchangam GitHub Workflow Dispatch
 Manually trigger the Panchangam calculation workflow via GitHub API
 

@@ -5,6 +5,8 @@
  */
 interface Env {
     GITHUB_TOKEN: string;
+    GITHUB_OWNER: string;
+    GITHUB_REPO: string;
 }
 export declare function triggerGitHubWorkflow(date: string, env: Env): Promise<{
     success: boolean;

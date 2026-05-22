@@ -1,9 +1,13 @@
+"use strict";
 /**
  * Slack Event Parser
  * ──────────────────
  * Extracts relevant data from Slack events and messages
  */
-export function parseSlackEvent(event) {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseSlackEvent = parseSlackEvent;
+exports.extractDateFromMessage = extractDateFromMessage;
+function parseSlackEvent(event) {
     const eventType = event.type;
     switch (eventType) {
         case 'app_mention': {
@@ -50,7 +54,7 @@ function parseMessage(event) {
         responseUrl: buildResponseUrl(event),
     };
 }
-export function extractDateFromMessage(text) {
+function extractDateFromMessage(text) {
     if (!text)
         return undefined;
     // Look for YYYY-MM-DD pattern
