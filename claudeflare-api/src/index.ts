@@ -94,10 +94,15 @@ async function handleSlackEvents(
       });
     }
 
-    // Check if this is an interactive action (form-encoded) or event (JSON)
+    // Check if this is form-encoded (slash command or interactive action)
     if (rawBody.includes('payload=')) {
       // This is an interactive action - delegate to interaction handler
       return handleInteractiveActionPayload(rawBody, env);
+    }
+    
+    if (rawBody.includes('command=')) {
+      // This is a slash command - delegate to slash command handler
+      return handleSlashCommandPayload(rawBody);
     }
 
     // Parse as JSON event
@@ -244,6 +249,43 @@ async function handleSlashCommand(
     });
   } catch (error) {
     console.error('Error handling slash command:', error);
+    return new Response(
+      JSON.stringify({
+        response_type: 'ephemeral',
+        text: 'Error processing command',
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+async function handleSlashCommandPayload(
+  rawBody: string
+): Promise<Response> {
+  try {
+    const bodyParams = new URLSearchParams(rawBody);
+    const command = bodyParams.get('command');
+    const userId = bodyParams.get('user_id');
+
+    console.log(`Slash command received: ${command} from user: ${userId}`);
+
+    // Generate calendar for any panchang-related slash command
+    if (command === '/panchang') {
+      const calendar = generateAppHomeCalendar();
+      return new Response(JSON.stringify(calendar), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        response_type: 'ephemeral',
+        text: 'Unknown command',
+      }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error handling slash command payload:', error);
     return new Response(
       JSON.stringify({
         response_type: 'ephemeral',
