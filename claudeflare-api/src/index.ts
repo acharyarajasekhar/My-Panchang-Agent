@@ -52,11 +52,6 @@ export default {
       return handleSlashCommand(request, env);
     }
 
-    // Route: Interactive Actions (buttons, etc.)
-    if (url.pathname === '/slack/interactions') {
-      return handleInteractiveAction(request, env);
-    }
-
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' },
@@ -259,49 +254,15 @@ async function handleSlashCommand(
   }
 }
 
-async function handleAppHomeOpened(userId: string): Promise<void> {
-  try {
-    console.log(`App Home opened for user: ${userId}`);
-    // Calendar is automatically shown in app home - just log the event
-    // Slack will display the calendar view we return
-  } catch (error) {
-    console.error('Error handling app home opened:', error);
-  }
-}
-
-async function handleInteractiveAction(
-  request: Request,
+async function handleInteractiveActionPayload(
+  rawBody: string,
   env: Env
 ): Promise<Response> {
   try {
-    const rawBody = await request.text();
-    const timestamp = request.headers.get('X-Slack-Request-Timestamp');
-    const signature = request.headers.get('X-Slack-Signature');
-
-    // Verify Slack signature
-    if (!timestamp || !signature) {
-      return new Response(JSON.stringify({ error: 'Invalid request' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const isValid = await verifySlackSignature(
-      env.SLACK_SIGNING_SECRET,
-      timestamp,
-      rawBody,
-      signature
-    );
-
-    if (!isValid) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     const bodyParams = new URLSearchParams(rawBody);
     const payload = JSON.parse(bodyParams.get('payload') || '{}') as Record<string, unknown>;
+
+    console.log('Interactive action received:', payload.type);
 
     // Handle block_actions (calendar date button clicks)
     if (payload.type === 'block_actions') {
@@ -347,5 +308,15 @@ async function handleInteractiveAction(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
+  }
+}
+
+async function handleAppHomeOpened(userId: string): Promise<void> {
+  try {
+    console.log(`App Home opened for user: ${userId}`);
+    // Calendar is automatically shown in app home - just log the event
+    // Slack will display the calendar view we return
+  } catch (error) {
+    console.error('Error handling app home opened:', error);
   }
 }
