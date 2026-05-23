@@ -46,42 +46,50 @@ def calendar_section(r: PanchangamResult) -> str:
 
 
 def pancha_anga_section(r: PanchangamResult) -> str:
-    """తిథి, నక్షత్రం, యోగం, కరణం — ముగింపు సమయాలతో as 3-column table."""
-    # Format Tithi with chain of next elements
-    tithi_str = f"{r.tithi.name_te} ({r.tithi.ends_at})"
-    if r.tithi.next_name_te:
-        tithi_str += f" → {r.tithi.next_name_te}"
-        if r.tithi.next_ends_at and r.tithi.next_next_name_te:
-            tithi_str += f" ({r.tithi.next_ends_at}) → {r.tithi.next_next_name_te}"
+    """తిథి, నక్షత్రం, యోగం, కరణం — సంపూర్ణ సమయ విచారణతో."""
     
-    # Format Nakshatra with chain of next elements
-    nak_str = f"{r.nakshatra.name_te} ({r.nakshatra.ends_at})"
-    if r.nakshatra.next_name_te:
-        nak_str += f" → {r.nakshatra.next_name_te}"
-        if r.nakshatra.next_ends_at and r.nakshatra.next_next_name_te:
-            nak_str += f" ({r.nakshatra.next_ends_at}) → {r.nakshatra.next_next_name_te}"
+    def _format_element_timeline(elem) -> str:
+        """Format an element with full transition timeline in Telugu."""
+        lines = []
+        
+        # If element started on previous day, show it with end time
+        if elem.started_on_previous_day:
+            lines.append(f"  • {elem.name_te} ({elem.started_at} → {elem.ends_at})")
+        else:
+            started_str = elem.started_at if elem.started_at else "రోజు ప్రారంభం"
+            lines.append(f"  • {elem.name_te} ({started_str} → {elem.ends_at})")
+        
+        # Show next element if it starts on the same day
+        if elem.next_name_te:
+            indicator = " ⚠️" if elem.next_is_inauspicious else ""
+            lines.append(f"  → {elem.next_name_te}{indicator} ({elem.next_starts_at} → {elem.next_ends_at})")
+        
+        # Show third element if it also fits on the same day
+        if elem.next_next_name_te:
+            indicator = " ⚠️" if elem.next_next_is_inauspicious else ""
+            lines.append(f"  → {elem.next_next_name_te}{indicator} ({elem.next_next_starts_at} → {elem.next_next_ends_at})")
+        
+        return "\n".join(lines)
     
-    # Format Yoga with chain of next elements
-    yoga_str = f"{r.yoga.name_te} {_warn(r.yoga.is_inauspicious)} ({r.yoga.ends_at})"
-    if r.yoga.next_name_te:
-        yoga_str += f" → {r.yoga.next_name_te}"
-        if r.yoga.next_ends_at and r.yoga.next_next_name_te:
-            yoga_str += f" ({r.yoga.next_ends_at}) → {r.yoga.next_next_name_te}"
+    # Format Tithi with transitions
+    tithi_str = _format_element_timeline(r.tithi)
     
-    # Format Karana with chain of next elements
-    kar_str = f"{r.karana.name_te} {_warn(r.karana.is_inauspicious)} ({r.karana.ends_at})"
-    if r.karana.next_name_te:
-        kar_str += f" → {r.karana.next_name_te}"
-        if r.karana.next_ends_at and r.karana.next_next_name_te:
-            kar_str += f" ({r.karana.next_ends_at}) → {r.karana.next_next_name_te}"
+    # Format Nakshatra with transitions
+    nak_str = _format_element_timeline(r.nakshatra)
+    
+    # Format Yoga with transitions
+    yoga_str = _format_element_timeline(r.yoga)
+    
+    # Format Karana with transitions
+    kar_str = _format_element_timeline(r.karana)
     
     lines = [
         "*⭐ పంచాంగ అంగాలు*",
         "```",
-        _table_row("🌙", "తిథి", tithi_str),
-        _table_row("⭐", "నక్షత్రం", nak_str),
-        _table_row("🔮", "యోగం", yoga_str),
-        _table_row("🎯", "కరణం", kar_str),
+        f"🌙 తిథి:\n{tithi_str}",
+        f"\n⭐ నక్షత్రం:\n{nak_str}",
+        f"\n🔮 యోగం:\n{yoga_str}",
+        f"\n🎯 కరణం:\n{kar_str}",
         "```",
     ]
     return "\n".join(lines)

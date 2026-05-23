@@ -76,16 +76,27 @@ _WEEKDAY_SA_TE = [
 
 @dataclass
 class TimedElement:
-    """An element (Tithi/Nakshatra/Yoga/Karana) with its end time and optional next element."""
+    """An element (Tithi/Nakshatra/Yoga/Karana) with start/end times and transitions."""
     name_en: str
     name_te: str
-    ends_at: str          # e.g. "08:14 AM" or "Next day"
+    ends_at: str          # e.g. "08:14 AM" or "Next day 07:45 AM"
+    started_at: str = ""  # e.g. "Previous day", "06:45 AM", or empty string for day-start
+    started_on_previous_day: bool = False  # True if element crosses into current date from previous
     is_inauspicious: bool = False
-    next_name_en: str | None = None  # Next element name (if same day)
-    next_name_te: str | None = None  # Next element name in Telugu
-    next_ends_at: str | None = None  # Next element end time
-    next_next_name_en: str | None = None  # Element after next (if next also same day)
-    next_next_name_te: str | None = None  # Element after next in Telugu
+    
+    # Next element info (with start time)
+    next_name_en: str | None = None
+    next_name_te: str | None = None
+    next_starts_at: str | None = None  # When next element starts (usually = current ends_at)
+    next_ends_at: str | None = None
+    next_is_inauspicious: bool = False
+    
+    # Third element info (if two transitions fit in the day)
+    next_next_name_en: str | None = None
+    next_next_name_te: str | None = None
+    next_next_starts_at: str | None = None
+    next_next_ends_at: str | None = None
+    next_next_is_inauspicious: bool = False
 
 
 @dataclass
@@ -209,6 +220,39 @@ def _karana_end_time(jd_start: float, elongation_at_start: float, target_date: d
     return _end_time(_elongation, elongation_at_start, 6.0, jd_start, target_date=target_date)
 
 
+def _start_time_with_datetime(
+    value_fn,
+    current_val: float,
+    span: float,
+    jd_start: float,
+    target_date: date | None = None,
+) -> tuple[str, datetime | None, bool]:
+    """
+    Find when value_fn last crossed a span-multiple boundary *before* jd_start.
+    Returns (formatted_time_string, datetime_object, crosses_day_boundary).
+    
+    crosses_day_boundary: True if start time is before midnight on target_date.
+    """
+    idx = math.floor(current_val / span)
+    boundary = idx * span
+    
+    jd_lo = jd_start - 3.0  # Search up to 3 days back
+    try:
+        jd_start_actual = find_boundary_jd(value_fn, boundary, jd_lo, jd_start)
+        dt = jd_to_datetime(jd_start_actual)
+        
+        crosses_previous = False
+        if target_date and dt.date() < target_date:
+            crosses_previous = True
+            formatted = "Previous day"
+        else:
+            formatted = _fmt_time(dt, target_date=target_date)
+        
+        return formatted, dt, crosses_previous
+    except Exception:
+        return "", None, False
+
+
 def _shaka_year(target: date, s_lon: float) -> int:
     """
     Compute Samvatsara cycle year (60-year repeating pattern).
@@ -290,22 +334,33 @@ def calculate(target: date) -> PanchangamResult:
     paksha_en = tithi_info.paksha_en
     paksha_te = tithi_info.paksha_te
 
-    # ── Tithi (with end time) ─────────────────────────────────────────
+    # ── Tithi (with start/end times) ──────────────────────────────────
     tithi_name_en = f"{tithi_info.paksha_en} {tithi_info.english}"
     tithi_name_te = f"{tithi_info.paksha_te} {tithi_info.telugu}"
-    tithi_end     = _end_time(_elongation, elong, TITHI_SPAN_DEG, jd_sunrise, target_date=target)
+    
+    # Find when current tithi started
+    tithi_started_at, tithi_start_dt, tithi_crosses_prev = _start_time_with_datetime(
+        _elongation, elong, TITHI_SPAN_DEG, jd_sunrise, target_date=target
+    )
+    
+    # Find when current tithi ends
+    tithi_end = _end_time(_elongation, elong, TITHI_SPAN_DEG, jd_sunrise, target_date=target)
     
     # Show next Tithi if current one ends on the same day
     next_tithi_name_en = None
     next_tithi_name_te = None
+    next_tithi_starts_at = None
     next_tithi_end = None
     next_next_tithi_name_en = None
     next_next_tithi_name_te = None
+    next_next_tithi_starts_at = None
+    next_next_tithi_end = None
     
     if "Next day" not in tithi_end:
         next_tithi_info = get_tithi_by_index(tithi_info.index + 1)
         next_tithi_name_en = f"{next_tithi_info.paksha_en} {next_tithi_info.english}"
         next_tithi_name_te = f"{next_tithi_info.paksha_te} {next_tithi_info.telugu}"
+        next_tithi_starts_at = tithi_end  # Starts when current ends
         
         # Compute when next tithi ends
         next_elong = ((math.floor(elong / TITHI_SPAN_DEG) + 1) * TITHI_SPAN_DEG) % 360.0
@@ -316,33 +371,54 @@ def calculate(target: date) -> PanchangamResult:
             next_next_tithi_info = get_tithi_by_index(tithi_info.index + 2)
             next_next_tithi_name_en = f"{next_next_tithi_info.paksha_en} {next_next_tithi_info.english}"
             next_next_tithi_name_te = f"{next_next_tithi_info.paksha_te} {next_next_tithi_info.telugu}"
+            next_next_tithi_starts_at = next_tithi_end  # Starts when next ends
+            
+            # Compute when next-next tithi ends (only if within search window)
+            next_next_elong = ((math.floor(elong / TITHI_SPAN_DEG) + 2) * TITHI_SPAN_DEG) % 360.0
+            next_next_tithi_end = _end_time(_elongation, next_next_elong, TITHI_SPAN_DEG, jd_sunrise, target_date=target)
     
-    tithi_elem    = TimedElement(
+    tithi_elem = TimedElement(
         name_en=tithi_name_en,
         name_te=tithi_name_te,
+        started_at=tithi_started_at,
+        started_on_previous_day=tithi_crosses_prev,
         ends_at=tithi_end,
         next_name_en=next_tithi_name_en,
         next_name_te=next_tithi_name_te,
+        next_starts_at=next_tithi_starts_at,
         next_ends_at=next_tithi_end,
         next_next_name_en=next_next_tithi_name_en,
         next_next_name_te=next_next_tithi_name_te,
+        next_next_starts_at=next_next_tithi_starts_at,
+        next_next_ends_at=next_next_tithi_end,
     )
 
-    # ── Nakshatra (with end time) ──────────────────────────────────────
+    # ── Nakshatra (with start/end times) ───────────────────────────────
     nak_idx, nak_tuple = get_nakshatra(m_lon)
-    nak_end  = _end_time(moon_longitude, m_lon, NAKSHATRA_SPAN_DEG, jd_sunrise, target_date=target)
+    
+    # Find when current nakshatra started
+    nak_started_at, nak_start_dt, nak_crosses_prev = _start_time_with_datetime(
+        moon_longitude, m_lon, NAKSHATRA_SPAN_DEG, jd_sunrise, target_date=target
+    )
+    
+    # Find when current nakshatra ends
+    nak_end = _end_time(moon_longitude, m_lon, NAKSHATRA_SPAN_DEG, jd_sunrise, target_date=target)
     
     # Show next Nakshatra if current one ends on the same day
     next_nak_name_en = None
     next_nak_name_te = None
+    next_nak_starts_at = None
     next_nak_end = None
     next_next_nak_name_en = None
     next_next_nak_name_te = None
+    next_next_nak_starts_at = None
+    next_next_nak_end = None
     
     if "Next day" not in nak_end:
         next_nak_en, next_nak_te, _ = get_nakshatra_by_index(nak_idx + 1)
         next_nak_name_en = next_nak_en
         next_nak_name_te = next_nak_te
+        next_nak_starts_at = nak_end  # Starts when current ends
         
         # Compute when next nakshatra ends
         next_m_lon = ((math.floor(m_lon / NAKSHATRA_SPAN_DEG) + 1) * NAKSHATRA_SPAN_DEG) % 360.0
@@ -353,34 +429,53 @@ def calculate(target: date) -> PanchangamResult:
             next_next_nak_en, next_next_nak_te, _ = get_nakshatra_by_index(nak_idx + 2)
             next_next_nak_name_en = next_next_nak_en
             next_next_nak_name_te = next_next_nak_te
+            next_next_nak_starts_at = next_nak_end  # Starts when next ends
     
     nak_elem = TimedElement(
         name_en=nak_tuple[0],
         name_te=nak_tuple[1],
+        started_at=nak_started_at,
+        started_on_previous_day=nak_crosses_prev,
         ends_at=nak_end,
         next_name_en=next_nak_name_en,
         next_name_te=next_nak_name_te,
+        next_starts_at=next_nak_starts_at,
         next_ends_at=next_nak_end,
         next_next_name_en=next_next_nak_name_en,
         next_next_name_te=next_next_nak_name_te,
+        next_next_starts_at=next_next_nak_starts_at,
+        next_next_ends_at=next_next_nak_end,
     )
 
-    # ── Yoga (with end time) ───────────────────────────────────────────
+    # ── Yoga (with start/end times) ──────────────────────────────────────
     yoga_val = (s_lon + m_lon) % 360.0
     yoga_idx, yoga_tuple = get_yoga(s_lon, m_lon)
-    yoga_end  = _end_time(_yoga_value, yoga_val, YOGA_SPAN_DEG, jd_sunrise, target_date=target)
+    
+    # Find when current yoga started
+    yoga_started_at, yoga_start_dt, yoga_crosses_prev = _start_time_with_datetime(
+        _yoga_value, yoga_val, YOGA_SPAN_DEG, jd_sunrise, target_date=target
+    )
+    
+    # Find when current yoga ends
+    yoga_end = _end_time(_yoga_value, yoga_val, YOGA_SPAN_DEG, jd_sunrise, target_date=target)
     
     # Show next Yoga if current one ends on the same day
     next_yoga_name_en = None
     next_yoga_name_te = None
+    next_yoga_starts_at = None
     next_yoga_end = None
+    next_yoga_is_inauspicious = False
     next_next_yoga_name_en = None
     next_next_yoga_name_te = None
+    next_next_yoga_starts_at = None
+    next_next_yoga_end = None
+    next_next_yoga_is_inauspicious = False
     
     if "Next day" not in yoga_end:
-        next_yoga_en, next_yoga_te, next_yoga_inauspicious = get_yoga_by_index(yoga_idx + 1)
+        next_yoga_en, next_yoga_te, next_yoga_is_inauspicious = get_yoga_by_index(yoga_idx + 1)
         next_yoga_name_en = next_yoga_en
         next_yoga_name_te = next_yoga_te
+        next_yoga_starts_at = yoga_end  # Starts when current ends
         
         # Compute when next yoga ends
         next_yoga_val = ((math.floor(yoga_val / YOGA_SPAN_DEG) + 1) * YOGA_SPAN_DEG) % 360.0
@@ -388,32 +483,52 @@ def calculate(target: date) -> PanchangamResult:
         
         # If next yoga also ends same day, get the one after that
         if "Next day" not in next_yoga_end:
-            next_next_yoga_en, next_next_yoga_te, _ = get_yoga_by_index(yoga_idx + 2)
+            next_next_yoga_en, next_next_yoga_te, next_next_yoga_is_inauspicious = get_yoga_by_index(yoga_idx + 2)
             next_next_yoga_name_en = next_next_yoga_en
             next_next_yoga_name_te = next_next_yoga_te
+            next_next_yoga_starts_at = next_yoga_end  # Starts when next ends
     
     yoga_elem = TimedElement(
         name_en=yoga_tuple[0],
         name_te=yoga_tuple[1],
+        started_at=yoga_started_at,
+        started_on_previous_day=yoga_crosses_prev,
         ends_at=yoga_end,
         is_inauspicious=yoga_tuple[2],
         next_name_en=next_yoga_name_en,
         next_name_te=next_yoga_name_te,
+        next_starts_at=next_yoga_starts_at,
         next_ends_at=next_yoga_end,
+        next_is_inauspicious=next_yoga_is_inauspicious,
         next_next_name_en=next_next_yoga_name_en,
         next_next_name_te=next_next_yoga_name_te,
+        next_next_starts_at=next_next_yoga_starts_at,
+        next_next_ends_at=next_next_yoga_end,
+        next_next_is_inauspicious=next_next_yoga_is_inauspicious,
     )
 
-    # ── Karana (with end time) ────────────────────────────────────────
+    # ── Karana (with start/end times) ────────────────────────────────────
     kar_en, kar_te = get_karana(tithi_info.index, elong)
-    kar_end  = _karana_end_time(jd_sunrise, elong, target_date=target)
+    
+    # Find when current karana started
+    kar_started_at, kar_start_dt, kar_crosses_prev = _start_time_with_datetime(
+        _elongation, elong, 6.0, jd_sunrise, target_date=target
+    )
+    
+    # Find when current karana ends
+    kar_end = _karana_end_time(jd_sunrise, elong, target_date=target)
     
     # Show next Karana if current one ends on the same day
     next_kar_name_en = None
     next_kar_name_te = None
+    next_kar_starts_at = None
     next_kar_end = None
+    next_kar_is_inauspicious = False
     next_next_kar_name_en = None
     next_next_kar_name_te = None
+    next_next_kar_starts_at = None
+    next_next_kar_end = None
+    next_next_kar_is_inauspicious = False
     
     if "Next day" not in kar_end:
         # Calculate current Karana position and get next one
@@ -422,6 +537,8 @@ def calculate(target: date) -> PanchangamResult:
         next_kar_en, next_kar_te = get_karana_by_position(karana_pos + 1)
         next_kar_name_en = next_kar_en
         next_kar_name_te = next_kar_te
+        next_kar_starts_at = kar_end  # Starts when current ends
+        next_kar_is_inauspicious = (next_kar_en == "Vishti")
         
         # Compute when next karana ends (next 6° elongation boundary)
         next_elong = ((math.floor(elong / 6.0) + 1) * 6.0) % 360.0
@@ -432,17 +549,26 @@ def calculate(target: date) -> PanchangamResult:
             next_next_kar_en, next_next_kar_te = get_karana_by_position(karana_pos + 2)
             next_next_kar_name_en = next_next_kar_en
             next_next_kar_name_te = next_next_kar_te
+            next_next_kar_starts_at = next_kar_end  # Starts when next ends
+            next_next_kar_is_inauspicious = (next_next_kar_en == "Vishti")
     
     kar_elem = TimedElement(
         name_en=kar_en,
         name_te=kar_te,
+        started_at=kar_started_at,
+        started_on_previous_day=kar_crosses_prev,
         ends_at=kar_end,
         is_inauspicious=(kar_en == "Vishti"),
         next_name_en=next_kar_name_en,
         next_name_te=next_kar_name_te,
+        next_starts_at=next_kar_starts_at,
         next_ends_at=next_kar_end,
+        next_is_inauspicious=next_kar_is_inauspicious,
         next_next_name_en=next_next_kar_name_en,
         next_next_name_te=next_next_kar_name_te,
+        next_next_starts_at=next_next_kar_starts_at,
+        next_next_ends_at=next_next_kar_end,
+        next_next_is_inauspicious=next_next_kar_is_inauspicious,
     )
 
     return PanchangamResult(
