@@ -52,6 +52,11 @@ def pancha_anga_section(r: PanchangamResult) -> str:
         """Format an element with full transition timeline in Telugu."""
         lines = []
         
+        # Show previous element if it exists
+        if elem.prev_name_te:
+            indicator = " ⚠️" if elem.prev_is_inauspicious else ""
+            lines.append(f"  • {elem.prev_name_te}{indicator} (← {elem.prev_ends_at})")
+        
         # If element started on previous day, show it with end time
         if elem.started_on_previous_day:
             lines.append(f"  • {elem.name_te} ({elem.started_at} → {elem.ends_at})")
