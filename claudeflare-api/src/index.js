@@ -45,6 +45,8 @@ async function handleSlackEvents(request, env, ctx) {
         const rawBody = await request.text();
         const timestamp = request.headers.get('X-Slack-Request-Timestamp');
         const signature = request.headers.get('X-Slack-Signature');
+        // Log what we received
+        console.log('Raw body received:', rawBody.substring(0, 200));
         // Verify Slack signature
         if (!timestamp || !signature) {
             console.error('Missing Slack verification headers');
@@ -64,10 +66,12 @@ async function handleSlackEvents(request, env, ctx) {
         // Check if this is form-encoded (slash command or interactive action)
         if (rawBody.includes('payload=')) {
             // This is an interactive action - delegate to interaction handler
+            console.log('Detected interactive action payload');
             return handleInteractiveActionPayload(rawBody, env);
         }
         if (rawBody.includes('command=')) {
             // This is a slash command - delegate to slash command handler
+            console.log('Detected slash command payload');
             return handleSlashCommandPayload(rawBody);
         }
         // Parse as JSON event
@@ -171,8 +175,11 @@ async function handleSlashCommand(request, env) {
             });
         }
         // Return calendar modal for slash command
-        const calendar = (0, app_home_calendar_1.generateAppHomeCalendar)();
-        return new Response(JSON.stringify(calendar), {
+        const calendarData = (0, app_home_calendar_1.generateAppHomeCalendar)();
+        return new Response(JSON.stringify({
+            response_type: 'in_channel',
+            blocks: calendarData.blocks,
+        }), {
             headers: { 'Content-Type': 'application/json' },
         });
     }
@@ -192,8 +199,12 @@ async function handleSlashCommandPayload(rawBody) {
         console.log(`Slash command received: ${command} from user: ${userId}`);
         // Generate calendar for any panchang-related slash command
         if (command === '/panchang') {
-            const calendar = (0, app_home_calendar_1.generateAppHomeCalendar)();
-            return new Response(JSON.stringify(calendar), {
+            console.log('Returning calendar blocks for slash command');
+            const calendarData = (0, app_home_calendar_1.generateAppHomeCalendar)();
+            return new Response(JSON.stringify({
+                response_type: 'in_channel',
+                blocks: calendarData.blocks,
+            }), {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
