@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 10
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      TZ: Asia/Kolkata
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,14 +30,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Extract date from webhook
+      - name: Extract date from webhook (defaults to today in IST)
         id: date
         run: |
           DATE="${{ github.event.client_payload.date }}"
           if [[ -z "$DATE" ]]; then
-            echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+            # Calculate today's IST date explicitly (GitHub Actions runs in UTC)
+            IST_DATE=$(date -u -d "+5 hours +30 minutes" +%Y-%m-%d)
+            echo "date=$IST_DATE" >> $GITHUB_OUTPUT
+            echo "✓ No date provided; using today's IST date: $IST_DATE"
           else
             echo "date=$DATE" >> $GITHUB_OUTPUT
+            echo "✓ Using provided date: $DATE"
           fi
 
       - name: Validate date format

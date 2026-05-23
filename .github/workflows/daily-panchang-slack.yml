@@ -2,7 +2,7 @@ name: Daily Panchangam Slack
 
 on:
   schedule:
-    # GitHub cron uses UTC. 00:30 UTC = 06:00 IST.
+    # GitHub cron uses UTC. 00:30 UTC = 06:00 IST (Asia/Kolkata is UTC+5:30).
     - cron: "30 0 * * *"
   workflow_dispatch:
 
@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 10
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      TZ: Asia/Kolkata
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,5 +32,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Calculate today's date in IST
+        id: date
+        run: |
+          # GitHub Actions runs in UTC; calculate IST date explicitly
+          # IST = UTC + 5 hours 30 minutes
+          IST_DATE=$(date -u -d "+5 hours +30 minutes" +%Y-%m-%d)
+          echo "date=$IST_DATE" >> $GITHUB_OUTPUT
+          echo "✓ Today's IST date: $IST_DATE"
+
       - name: Send Panchangam message to Slack
-        run: python main.py --now
+        run: python main.py --now --date ${{ steps.date.outputs.date }}
