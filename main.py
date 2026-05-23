@@ -57,6 +57,8 @@ def run_once(target: date | None = None, dry_run: bool = False) -> None:
     payload         = build_payload(panchang_result, timings, languages=MESSAGE_LANGUAGE)
 
     if dry_run:
+        import sys
+        sys.stdout.reconfigure(encoding='utf-8')
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         log.info("Dry-run complete — payload printed to stdout.")
         return

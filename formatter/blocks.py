@@ -187,13 +187,25 @@ def build_payload(
             _divider(),
             _section_text(en.timings_section(timings)),
             _divider(),
+        ])
+        if result.festival_today_en:
+            blocks.extend([
+                _section_text(en.festival_section(result)),
+                _divider(),
+            ])
+        blocks.extend([
             _leaf_break("తెలుగు"),
             _section_text(te.calendar_section(result)),
             _divider(),
             _section_text(te.pancha_anga_section(result)),
             _divider(),
             _section_text(te.timings_section(timings)),
+            _divider(),
         ])
+        if result.festival_today_te:
+            blocks.extend([
+                _section_text(te.festival_section(result)),
+            ])
     elif languages == ("english",):
         blocks.extend([
             _section_text(en.calendar_section(result)),
@@ -201,7 +213,12 @@ def build_payload(
             _section_text(en.pancha_anga_section(result)),
             _divider(),
             _section_text(en.timings_section(timings)),
+            _divider(),
         ])
+        if result.festival_today_en:
+            blocks.extend([
+                _section_text(en.festival_section(result)),
+            ])
     else:
         blocks.extend([
             _section_text(te.calendar_section(result)),
@@ -209,7 +226,12 @@ def build_payload(
             _section_text(te.pancha_anga_section(result)),
             _divider(),
             _section_text(te.timings_section(timings)),
+            _divider(),
         ])
+        if result.festival_today_te:
+            blocks.extend([
+                _section_text(te.festival_section(result)),
+            ])
 
     blocks.extend([
         _divider(),

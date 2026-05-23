@@ -32,6 +32,7 @@ from panchang.data.yoga import get_yoga, get_yoga_by_index, YOGA_SPAN_DEG
 from panchang.data.karana import get_karana, get_karana_by_position
 from panchang.data.masa import get_masa
 from panchang.data.samvatsara import get_samvatsara
+from panchang.data.festivals import get_todays_festival
 
 # ── Telugu weekday names ───────────────────────────────────────────────
 _WEEKDAY_TE = [
@@ -137,6 +138,8 @@ class PanchangamResult:
     # ── Key timings (strings, formatted as "HH:MM AM/PM IST") ─────────
     sunrise: str
     sunset: str
+    festival_today_en: str | None = None  # Festival name in English if any
+    festival_today_te: str | None = None  # Festival name in Telugu if any
     # Rahu Kalam / Yamagandam / Gulika / Durmuhurtam supplied by timings.py
 
 
@@ -638,6 +641,9 @@ def calculate(target: date) -> PanchangamResult:
         next_next_is_inauspicious=next_next_kar_is_inauspicious,
     )
 
+    # ── Festival Detection ────────────────────────────────────────────
+    festival_en, festival_te = get_todays_festival(target, tithi_info.english, masa_info.english, paksha_en)
+
     return PanchangamResult(
         gregorian_date=target,
         weekday_en=weekday_en,
@@ -665,4 +671,6 @@ def calculate(target: date) -> PanchangamResult:
 
         sunrise=_fmt_time(sunrise_dt),
         sunset=_fmt_time(sunset_dt),
+        festival_today_en=festival_en,
+        festival_today_te=festival_te,
     )

@@ -112,3 +112,17 @@ def timings_section(t: DailyTimings) -> str:
         "```",
     ]
     return "\n".join(lines)
+
+
+def festival_section(r: PanchangamResult) -> str:
+    """Festival information for today."""
+    if not r.festival_today_en:
+        return ""
+    
+    lines = [
+        "*🎉 Festival Today*",
+        "```",
+        f"{r.festival_today_en}",
+        "```",
+    ]
+    return "\n".join(lines)
