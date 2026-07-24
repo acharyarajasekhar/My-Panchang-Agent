@@ -1,4 +1,4 @@
-# My-Panchang-Agent - Future Reference Guide
+# My-Panchang-Agent - Future Reference Guide V2
 
 This document is the operational reference for maintaining and extending this project.
 
